@@ -1,0 +1,50 @@
+{
+  "name": "@feathers-plus/plugin-scaffolding",
+  "description": "Scaffolding to support plugins",
+  "version": "0.0.0",
+  "homepage": "",
+  "main": "src",
+  "private": false,
+  "keywords": [
+    "feathersjs",
+    "feathers-plus",
+    "utilities",
+    "plugin"
+  ],
+  "author": {
+    "name": "John Szwaronek",
+    "email": "johnsz9999@gmail.com"
+  },
+  "contributors": [],
+  "bugs": {},
+  "directories": {
+    "lib": "src",
+    "test": "test/"
+  },
+  "engines": {
+    "node": "^10.0.0",
+    "npm": ">= 3.0.0"
+  },
+  "scripts": {
+    "public": "npm publish --access public",
+    "publish": "git push origin --tags && npm run changelog && git push origin",
+    "release:prerelease": "npm version prerelease && npm publish --tag pre",
+    "release:patch": "npm version patch && npm publish",
+    "release:minor": "npm version minor && npm publish",
+    "release:major": "npm version major && npm publish",
+    "changelog": "github_changelog_generator && git add CHANGELOG.md && git commit -am \"Updating changelog\"",
+    "lint": "semistandard --fix",
+    "mocha": "mocha --opts mocha.opts",
+    "coverage": "istanbul cover node_modules/mocha/bin/_mocha -- --opts mocha.opts",
+    "test": "npm run lint && npm run coverage"
+  },
+  "dependencies": {
+    "@feathers-plus/commons": "^0.3.0"
+  },
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "istanbul": "^1.1.0-alpha.1",
+    "mocha": "^5.2.0",
+    "semistandard": "^12.0.1"
+  }
+}
