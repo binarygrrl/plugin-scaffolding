@@ -1,74 +1,127 @@
 
+/*
+ Purpose
+ =======
+
+ You can roughly think of plugins as replacing switch/case syntax. Instead of
+   switch (name) {
+     case 'name1':
+      // ...
+      break;
+    case 'name2':
+      // ...
+      break;
+   }
+ 
+ You can use:
+   plugins.register(plugin1);
+   plugins.register(plugin1);
+   // ...
+   plugins.run(name);
+
+ This allows the equivalent of a variable switch/case into which conditions may be injected.
+
+
+ Add a plugin
+ ============
+
+ const Plugins = require('plugin-scaffolding');
+ const plugins = new Plugins({ options: _options });
+ plugins.register(plugin1);
+ plugins.register([plugin2, ...]);
+
+ plugin = {
+   // Multiple plugins using the same name are run sequentially.
+   name: 'foo',
+   // Not used. Optional.
+   version: '1.0.0',
+   // Drop previous plugins using this name. Default is false.
+   replacePrevious: false,
+   // Setup funcs for all plugins are run together on plugins.setup(). Optional.
+   setup: [async (this._options, this._pluginsContext, pluginContext) => {}, ...],
+   // Plugins using the same name are run sequentially on plugins.run(name, data).
+   run: [async (context, data) => {}, ...],
+   // Teardown funcs for all plugins are run together on plugins.teardown(). Optional.
+   teardown: [async (args, this._options, this._pluginsContext, pluginContext) => {}, ...],
+ };
+
+ this._options = _options in new Plugins({ options: _options }). Usually _options would be default
+   options which the setup funcs can modify with additional default props. These could then be
+   merged with options provided by the user, thus mutating _options.
+ this._pluginsContext = A new this._pluginsContext is initialized when the Plugins class is
+   instantiated. It is shared by all the setup, run and teardown funcs of all plugins
+   for communication.
+ pluginContext = A new pluginContext is initialized at the start of setup, of run and of
+   teardown. This shared by the multiple setup funcs, run funcs or teardown funcs.
+ */
+
 const {
-  debug, flatten1Level, isArray, isFunction, isNullsy, isObject, isString, throwError
+  debug, flatten1Level, isArray, isBoolean, isFunction, isNullsy, isObject, isString, throwError
 } = require('@feathers-plus/commons');
 
 module.exports = class Plugins {
   constructor (options) {
-    this._options = Object.assign({}, options.options);
+    this._options = options.options;
     this._registry = new Map();
     this._pluginsContext = {};
   }
 
-  /*
-   Add a plugin.
+  register (plugins) {
+    plugins = Array.isArray(plugins) ? plugins : [plugins];
 
-   plugin = {
-     name: 'foo',
-     version: '1.0.0', // optional
-     setup: [async (this._options, this._pluginsContext, pluginContext) => {}, ...], // optional
-     run: [async (context, data) => {}, ...],
-     teardown: [async (args, this._options, this._pluginsContext, pluginContext) => {}, ...], // optional
-   };
-   */
-
-  register (plugin) {
-    if (!isObject(plugin)) {
-      throwError(`Plugin is ${typeof plugin} not object. (plugins)`);
-    }
-    const { name, version, setup, run, teardown } = plugin;
-
-    if (!isString(name)) {
-      throwError(`Plugin.name is ${typeof plugin} not string. (plugins)`);
-    }
-    if (!isString(version) && !isNullsy(version)) {
-      throwError(`Plugin.version is ${typeof version} not string. (plugins)`);
-    }
-
-    if (setup) {
-      (isArray(setup) ? setup : [setup]).forEach((func, i) => {
-        if (!isFunction(func)) {
-          throwError(`Plugin.setup[${i}] is ${typeof func} not function. (plugins)`);
-        }
-      });
-    }
-
-    (isArray(run) ? run : [run]).forEach((func, i) => {
-      if (!isFunction(func)) {
-        throwError(`Plugin.run[${i}] is ${typeof func} not function. (plugins)`);
+    plugins.forEach(plugin => {
+      if (!isObject(plugin)) {
+        throwError(`Plugin is ${typeof plugin} not object. (plugins)`);
       }
-    });
+      const { name, version, replacePrevious, setup, run, teardown } = plugin;
 
-    if (teardown) {
-      (isArray(teardown) ? teardown : [teardown]).forEach((func, i) => {
+      if (!isString(name)) {
+        throwError(`Plugin.name is ${typeof plugin} not string. (plugins)`);
+      }
+
+      if (!isString(version) && !isNullsy(version)) {
+        throwError(`Plugin.version is ${typeof version} not string. (plugins)`);
+      }
+
+      if (!isBoolean(replacePrevious) && !isNullsy(replacePrevious)) {
+        throwError(`Plugin.replacePrevious is ${typeof replacePrevious} not boolean. (plugins)`);
+      }
+
+      if (setup) {
+        (isArray(setup) ? setup : [setup]).forEach((func, i) => {
+          if (!isFunction(func)) {
+            throwError(`Plugin.setup[${i}] is ${typeof func} not function. (plugins)`);
+          }
+        });
+      }
+
+      (isArray(run) ? run : [run]).forEach((func, i) => {
         if (!isFunction(func)) {
-          throwError(`Plugin.teardown[${i}] is ${typeof func} not function. (plugins)`);
+          throwError(`Plugin.run[${i}] is ${typeof func} not function. (plugins)`);
         }
       });
-    }
 
-    let handlers = this._registry.get(name);
+      if (teardown) {
+        (isArray(teardown) ? teardown : [teardown]).forEach((func, i) => {
+          if (!isFunction(func)) {
+            throwError(`Plugin.teardown[${i}] is ${typeof func} not function. (plugins)`);
+          }
+        });
+      }
 
-    if (!handlers) {
-      handlers = { setup: [], exec: [], teardown: [] };
-      this._registry.set(name, handlers);
-    }
+      let handlers = this._registry.get(name);
 
-    handlers.setup.push(plugin.setup);
-    handlers.exec.push(plugin.run);
-    handlers.teardown.push(plugin.teardown);
+      if (!handlers || replacePrevious) {
+        handlers = { setup: [], exec: [], teardown: [] };
+        this._registry.set(name, handlers);
+      }
 
-    debug('register plugin name', name, plugin);
+      handlers.setup.push(plugin.setup);
+      handlers.exec.push(plugin.run);
+      handlers.teardown.push(plugin.teardown);
+
+      debug('register plugin name', name, plugin);
+    });
   }
 
   setup () {

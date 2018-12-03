@@ -3,7 +3,7 @@ const Plugins = require('../src/Plugins');
 
 const plugins = new Plugins({ options: { option1: 'bar' } });
 
-plugins.register({
+plugins.register([{
   name: 'sendResetPwd',
   version: '1.0.0',
   setup: [
@@ -30,7 +30,7 @@ plugins.register({
     },
     (...args) => console.log('sendResetPwd teardown2', args)
   ]
-});
+}]);
 
 plugins.setup();
 console.log();
