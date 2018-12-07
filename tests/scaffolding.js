@@ -1,5 +1,5 @@
 
-const Plugins = require('../src/Plugins');
+const Plugins = require('../src');
 
 const plugins = new Plugins({ options: { option1: 'bar' } });
 
@@ -32,8 +32,10 @@ plugins.register([{
   ]
 }]);
 
-plugins.setup();
-console.log();
-plugins.run('sendResetPwd', { data1: 1 });
-console.log();
-plugins.teardown('sendResetPwd');
+(async function () {
+  await plugins.setup();
+  console.log();
+  await plugins.run('sendResetPwd', { data1: 1 });
+  console.log();
+  await plugins.teardown('sendResetPwd');
+}());

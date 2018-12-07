@@ -5,6 +5,11 @@
   "homepage": "",
   "main": "src",
   "private": false,
+  "license": "MIT",
+  "directories": {
+    "lib": "src",
+    "test": "test/"
+  },
   "keywords": [
     "feathersjs",
     "feathers-plus",
@@ -16,10 +21,12 @@
     "email": "johnsz9999@gmail.com"
   },
   "contributors": [],
-  "bugs": {},
-  "directories": {
-    "lib": "src",
-    "test": "test/"
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/feathers-plus/plugin-scaffolding.git"
+  },
+  "bugs": {
+    "url": "https://github.com/feathers-plus/plugin-scaffolding/issues"
   },
   "engines": {
     "node": "^10.0.0",
@@ -39,7 +46,8 @@
     "test": "npm run lint && npm run coverage"
   },
   "dependencies": {
-    "@feathers-plus/commons": "^0.3.0"
+    "@feathers-plus/commons": "^0.3.1",
+    "debug": "^4.1.0"
   },
   "devDependencies": {
     "chai": "^4.1.2",
