@@ -31,19 +31,23 @@
  plugins.register([plugin2, ...]);
 
  plugin = {
-   // Multiple plugins using the same name are run sequentially.
+   // Your name for the plugin. Not used. Optional.
    name: 'foo',
-   // Not used. Optional.
+   // Description of the trigger. Not used. Optional.
    desc: 'Default plugin used by repo',
    // Not used. Optional.
    version: '1.0.0',
-   // Drop previous plugins using this name. Default is false.
-   replacePrevious: false,
+   // Multiple plugins using the same trigger are run sequentially.
+   trigger: 'foo',
+   // Place plugin 'before' existing plugins, 'clear' existing plugins and add this one,
+   // 'after' existing plugins, Optional, default is 'after'.
+   position: 'after',
    // Setup funcs for all plugins are run together on plugins.setup(). Optional.
    setup: [async (this._options, this._pluginsContext, pluginContext) => {}, ...],
-   // Plugins using the same name are run sequentially on plugins.run(name, data).
-   // The results are returned in an array.
-   run: [async (context, data) => {}, ...],
+   // Plugins having the same trigger value are run sequentially on plugins.run(trigger, data).
+   // The initial accumulator is null. The new accumulator is returned by the plugin.
+   // The value of the last accumulator is returned as the result of the plugins.
+   run: [async (accumulator, data, options, pluginsContext, pluginContext) => {}, ...],
    // Teardown funcs for all plugins are run together on plugins.teardown(). Optional.
    teardown: [async (args, this._options, this._pluginsContext, pluginContext) => {}, ...],
  };
@@ -81,9 +85,9 @@ module.exports = class Plugins {
         throwError(`Plugin is ${typeof plugin} not object. (plugins)`);
       }
 
-      const { name, desc, version, replacePrevious, setup, run, teardown } = plugin;
+      const { name, desc, version, trigger, position, setup, run, teardown } = plugin;
 
-      if (!isString(name)) {
+      if (!isString(name) && !isNullsy(name)) {
         throwError(`Plugin.name is ${typeof name} not string. (plugins)`);
       }
 
@@ -95,8 +99,12 @@ module.exports = class Plugins {
         throwError(`Plugin.version is ${typeof version} not string. (plugins)`);
       }
 
-      if (!isBoolean(replacePrevious) && !isNullsy(replacePrevious)) {
-        throwError(`Plugin.replacePrevious is ${typeof replacePrevious} not boolean. (plugins)`);
+      if (!isString(trigger)) {
+        throwError(`Plugin.trigger is ${typeof name} not string. (plugins)`);
+      }
+
+      if (!isNullsy(position) && !['before', 'clear', 'after'].contains(position)) {
+        throwError(`Plugin.position is ${position} not before/clear/after. (plugins)`);
       }
 
       if (setup) {
@@ -121,18 +129,30 @@ module.exports = class Plugins {
         });
       }
 
-      let handlers = this._registry.get(name);
+      let handlers = this._registry.get(trigger);
 
-      if (!handlers || replacePrevious) {
+      if (!handlers) {
         handlers = { setup: [], run: [], teardown: [] };
-        this._registry.set(name, handlers);
+        this._registry.set(trigger, handlers);
       }
 
-      handlers.setup.push(plugin.setup);
-      handlers.run.push(plugin.run);
-      handlers.teardown.push(plugin.teardown);
+      switch (position) {
+        case 'before':
+          handlers.setup.unshift(plugin.setup);
+          handlers.run.unshift(plugin.run);
+          handlers.teardown.unshift(plugin.teardown);
+          break;
+        case 'clear':
+          handlers = { setup: [], run: [], teardown: [] };
+          this._registry.set(trigger, handlers);
+          break;
+        default:
+          handlers.setup.push(plugin.setup);
+          handlers.run.push(plugin.run);
+          handlers.teardown.push(plugin.teardown);
+      }
 
-      debug('register plugin name', name);
+      debug('register plugin name', name, trigger);
     });
   }
 
@@ -140,10 +160,10 @@ module.exports = class Plugins {
     debug('setup handlers', this._registry);
 
     // Flatten handlers
-    this._registry.forEach((plugin, name) => {
-      const handlers = this._registry.get(name);
+    this._registry.forEach((plugin, trigger) => {
+      const handlers = this._registry.get(trigger);
 
-      this._registry.set(name, {
+      this._registry.set(trigger, {
         setup: flatten1Level(handlers.setup),
         run: flatten1Level(handlers.run),
         teardown: flatten1Level(handlers.teardown)
@@ -153,50 +173,50 @@ module.exports = class Plugins {
     debug('setup handlers flattened', this._registry);
 
     // setup plugins
-    for (let [name, plugin] of this._registry) {
+    for (let [trigger, plugin] of this._registry) {
       const pluginContext = {};
-      const setups = this._registry.get(name).setup;
+      const setups = this._registry.get(trigger).setup;
       const length = setups.length;
 
       if (length) {
         for (let i = 0; i < length; i++) {
-          debug('Setup plugin', name, i + 1, 'of', length);
+          debug('Setup plugin', trigger, i + 1, 'of', length);
           await (setups[i](this._options, this._pluginsContext, pluginContext));
         }
       }
     }
   }
 
-  async run (name, args) {
-    if (!this._registry.has(name)) {
-      throwError(`Plugins do not contain name ${name}. (plugins)`);
+  async run (trigger, args) {
+    if (!this._registry.has(trigger)) {
+      throwError(`Plugins do not contain trigger ${trigger}. (plugins)`);
     }
 
     const pluginContext = {};
-    const runs = this._registry.get(name).run;
+    const runs = this._registry.get(trigger).run;
     const length = runs.length;
     let accumulator = null;
 
     if (length) {
       for (let i = 0; i < length; i++) {
-        debug('plugin', name, i + 1, 'of', length, 'accumulator', accumulator);
+        debug('plugin', trigger, i + 1, 'of', length, 'accumulator', accumulator);
         accumulator = await (runs[i](accumulator, args, this._options, this._pluginsContext, pluginContext));
       }
     }
 
-    debug('plugin', name, accumulator);
+    debug('plugin', trigger, accumulator);
     return accumulator;
   }
 
-  async teardown (name) {
-    for (let [name, plugin] of this._registry) {
+  async teardown (trigger) {
+    for (let [trigger, plugin] of this._registry) {
       const pluginContext = {};
-      const teardowns = this._registry.get(name).teardown;
+      const teardowns = this._registry.get(trigger).teardown;
       const length = teardowns.length;
 
       if (length) {
         for (let i = 0; i < length; i++) {
-          debug('Teardown plugin', name, i + 1, 'of', length);
+          debug('Teardown plugin', trigger, i + 1, 'of', length);
           await (teardowns[i](this._options, this._pluginsContext, pluginContext));
         }
       }
