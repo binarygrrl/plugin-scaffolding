@@ -197,6 +197,10 @@ module.exports = class Plugins {
     }
   }
 
+  has(trigger) {
+    return this._registry.has(trigger);
+  }
+
   async run (trigger, args) {
     if (!this._registry.has(trigger)) {
       throwError(`Plugins do not contain trigger ${trigger}. (plugins)`);
