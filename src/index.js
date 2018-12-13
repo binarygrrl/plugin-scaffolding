@@ -6,27 +6,38 @@
  You can roughly think of plugins as replacing switch/case syntax. Instead of
    switch (name) {
      case 'name1':
-      // ...
+      await name1(data);
       break;
     case 'name2':
-      // ...
+      await name2a(data);
+      await name2b(data);
       break;
    }
 
  You can use:
-   plugins.register(plugin1);
-   plugins.register(plugin1);
+   plugins.register('name1', plugin1); // async plugin1(accum, data, pluginsContext, pluginContext)
+   plugins.register('name2', [plugin2a, plugin2b]);
    // ...
    plugins.run(name);
 
  This allows the equivalent of a variable switch/case into which conditions may be injected.
 
 
+ Plugins can also be used to replace other statements, e.g.
+   const users = await plugins.run('resendVerifySignup.find', {
+     usersService,
+     params: { query: identifyUser },
+   });
+
+
  Add a plugin
  ============
 
  const Plugins = require('plugin-scaffolding');
- const plugins = new Plugins({ options: _options });
+
+ // Note that new Plugins(options) should not used as the param gets shallow cloned and mutated.
+ const plugins = new Plugins({ options });
+
  plugins.register(plugin1);
  plugins.register([plugin2, ...]);
 
@@ -43,23 +54,22 @@
    // 'after' existing plugins, Optional, default is 'after'.
    position: 'after',
    // Setup funcs for all plugins are run together on plugins.setup(). Optional.
-   setup: [async (this._options, this._pluginsContext, pluginContext) => {}, ...],
+   setup: [async (this._pluginsContext, pluginContext) => {}, ...],
    // Plugins having the same trigger value are run sequentially on plugins.run(trigger, data).
    // The initial accumulator is null. The new accumulator is returned by the plugin.
    // The value of the last accumulator is returned as the result of the plugins.
-   run: [async (accumulator, data, options, pluginsContext, pluginContext) => {}, ...],
+   run: [async (accumulator, data, pluginsContext, pluginContext) => {}, ...],
    // Teardown funcs for all plugins are run together on plugins.teardown(). Optional.
-   teardown: [async (args, this._options, this._pluginsContext, pluginContext) => {}, ...],
+   teardown: [async (args, this._pluginsContext, pluginContext) => {}, ...],
  };
 
- this._options = _options in new Plugins({ options: _options }). Usually _options would be default
-   options which the setup funcs can modify with additional default props. These could then be
-   merged with options provided by the user, thus mutating _options.
- this._pluginsContext = A new this._pluginsContext is initialized when the Plugins class is
-   instantiated. It is shared by all the setup, run and teardown funcs of all plugins
-   for communication.
- pluginContext = A new pluginContext is initialized at the start of setup, of run and of
-   teardown. This shared by the multiple setup funcs, run funcs or teardown funcs.
+ this._pluginsContext = A shallow clone of the constructor param. The prop 'plugins' is added
+   containing the new instantiated class, as this allows plugins to call other plugins with
+   `pluginsContext.plugins.run(trigger, data)'. this._pluginsContext is shared by all the setup,
+   run and teardown funcs of all plugins for communication.
+ this.pluginContext = A new pluginContext is initialized at the start of setup, of run(triggerName)
+   and of teardown. This is shared by the multiple setup funcs, the run(triggerName) funcs or
+   teardown funcs, so they do not have to populate this._pluginsContext.
  */
 
 const makeDebug = require('debug');
@@ -70,10 +80,10 @@ const {
 const debug = makeDebug('plugin-scaffolding');
 
 module.exports = class Plugins {
-  constructor (options) {
-    this._options = options.options;
+  constructor (pluginsContext) {
     this._registry = new Map();
-    this._pluginsContext = {};
+    this._pluginsContext = Object.assign({}, pluginsContext);
+    this._pluginsContext.plugins = this;
   }
 
   register (plugins) {
@@ -181,7 +191,7 @@ module.exports = class Plugins {
       if (length) {
         for (let i = 0; i < length; i++) {
           debug('Setup plugin', trigger, i + 1, 'of', length);
-          await (setups[i](this._options, this._pluginsContext, pluginContext));
+          await (setups[i](this._pluginsContext, pluginContext));
         }
       }
     }
@@ -200,7 +210,7 @@ module.exports = class Plugins {
     if (length) {
       for (let i = 0; i < length; i++) {
         debug('plugin', trigger, i + 1, 'of', length, 'accumulator', accumulator);
-        accumulator = await (runs[i](accumulator, args, this._options, this._pluginsContext, pluginContext));
+        accumulator = await (runs[i](accumulator, args, this._pluginsContext, pluginContext));
       }
     }
 
@@ -217,7 +227,7 @@ module.exports = class Plugins {
       if (length) {
         for (let i = 0; i < length; i++) {
           debug('Teardown plugin', trigger, i + 1, 'of', length);
-          await (teardowns[i](this._options, this._pluginsContext, pluginContext));
+          await (teardowns[i](this._pluginsContext, pluginContext));
         }
       }
     }
