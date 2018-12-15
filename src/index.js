@@ -50,7 +50,8 @@
    version: '1.0.0',
    // Multiple plugins using the same trigger are run sequentially.
    trigger: 'foo',
-   // Place plugin 'before' existing plugins, 'clear' existing plugins and add this one,
+   // Place plugin 'before' existing plugins,
+   // 'clear' existing plugins and add this one,
    // 'after' existing plugins, Optional, default is 'after'.
    position: 'after',
    // Setup funcs for all plugins are run together on plugins.setup(). Optional.
@@ -113,7 +114,7 @@ module.exports = class Plugins {
         throwError(`Plugin.trigger is ${typeof name} not string. (plugins)`);
       }
 
-      if (!isNullsy(position) && !['before', 'clear', 'after'].contains(position)) {
+      if (!isNullsy(position) && !['before', 'clear', 'after'].includes(position)) {
         throwError(`Plugin.position is ${position} not before/clear/after. (plugins)`);
       }
 
