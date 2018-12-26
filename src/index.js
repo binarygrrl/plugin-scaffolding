@@ -154,7 +154,7 @@ module.exports = class Plugins {
           handlers.teardown.unshift(plugin.teardown);
           break;
         case 'clear':
-          handlers = { setup: [], run: [], teardown: [] };
+          handlers = { setup: [plugin.setup], run: [plugin.run], teardown: [plugin.teardown] };
           this._registry.set(trigger, handlers);
           break;
         default:
@@ -210,7 +210,7 @@ module.exports = class Plugins {
     const pluginContext = {};
     const runs = this._registry.get(trigger).run;
     const length = runs.length;
-    let accumulator = null;
+    let accumulator = undefined; // Allows 'null' as a valid return value.
 
     if (length) {
       for (let i = 0; i < length; i++) {
