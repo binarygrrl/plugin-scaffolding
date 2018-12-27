@@ -22,13 +22,11 @@
 
  This allows the equivalent of a variable switch/case into which conditions may be injected.
 
-
  Plugins can also be used to replace other statements, e.g.
    const users = await plugins.run('resendVerifySignup.find', {
      usersService,
      params: { query: identifyUser },
    });
-
 
  Add a plugin
  ============
@@ -75,7 +73,7 @@
 
 const makeDebug = require('debug');
 const {
-  flatten1Level, isArray, isBoolean, isFunction, isNullsy, isObject, isString, throwError
+  flatten1Level, isArray, isFunction, isNullsy, isObject, isString, throwError
 } = require('@feathers-plus/commons');
 
 const debug = makeDebug('plugin-scaffolding');
@@ -91,7 +89,6 @@ module.exports = class Plugins {
     plugins = Array.isArray(plugins) ? plugins : [plugins];
 
     plugins.forEach(plugin => {
-
       if (!isObject(plugin)) {
         throwError(`Plugin is ${typeof plugin} not object. (plugins)`);
       }
@@ -184,7 +181,7 @@ module.exports = class Plugins {
     debug('setup handlers flattened', this._registry);
 
     // setup plugins
-    for (let [trigger, plugin] of this._registry) {
+    for (let [trigger] of this._registry) {
       const pluginContext = {};
       const setups = this._registry.get(trigger).setup;
       const length = setups.length;
@@ -198,7 +195,7 @@ module.exports = class Plugins {
     }
   }
 
-  has(trigger) {
+  has (trigger) {
     return this._registry.has(trigger);
   }
 
@@ -210,7 +207,7 @@ module.exports = class Plugins {
     const pluginContext = {};
     const runs = this._registry.get(trigger).run;
     const length = runs.length;
-    let accumulator = undefined; // Allows 'null' as a valid return value.
+    let accumulator; // Allows 'null' as a valid return value.
 
     if (length) {
       for (let i = 0; i < length; i++) {
@@ -223,8 +220,8 @@ module.exports = class Plugins {
     return accumulator;
   }
 
-  async teardown (trigger) {
-    for (let [trigger, plugin] of this._registry) {
+  async teardown () {
+    for (let [trigger] of this._registry) {
       const pluginContext = {};
       const teardowns = this._registry.get(trigger).teardown;
       const length = teardowns.length;
