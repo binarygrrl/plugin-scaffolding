@@ -57,9 +57,13 @@ describe('order.test.js', () => {
   });
 
   it('before & after work', async () => {
-    plugins.register(pluginsLibr.default);
-    plugins.register(pluginsLibr.before);
-    plugins.register(pluginsLibr.after);
+    plugins.register([
+      pluginsLibr.default,
+      pluginsLibr.before
+    ]);
+    plugins.register([
+      pluginsLibr.after
+    ]);
     await plugins.setup();
 
     await plugins.run('test');
@@ -69,10 +73,14 @@ describe('order.test.js', () => {
   });
 
   it('clear works', async () => {
-    plugins.register(pluginsLibr.default);
-    plugins.register(pluginsLibr.before);
-    plugins.register(pluginsLibr.clear);
-    plugins.register(pluginsLibr.after);
+    plugins.register([
+      pluginsLibr.default,
+      pluginsLibr.before
+    ]);
+    plugins.register([
+      pluginsLibr.clear,
+      pluginsLibr.after
+    ]);
     await plugins.setup();
 
     await plugins.run('test');
